@@ -1,6 +1,24 @@
-.App {
-  text-align: center;
+/* ----- Sticky footer layout ----- */
+html, body, #root { height: 100%; }
+body { margin: 0; }
+
+.appShell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column; /* Header ↑ | Main (rośnie) | Footer ↓ */
 }
+
+.appMain {
+  flex: 1 0 auto;         /* zajmij wolną przestrzeń między headerem a footerem */
+}
+
+/* Footer ma klasę .siteFooter w Footer.jsx */
+.siteFooter {
+  margin-top: auto;        /* dociśnij do dołu */
+}
+
+/* ----- (opcjonalne) resztki z CRA, zostawione w wersji bez błędów składni ----- */
+.App { text-align: center; }
 
 .App-logo {
   height: 40vmin;
@@ -8,31 +26,14 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+  .App-logo { animation: App-logo-spin infinite 20s linear; }
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
+.App-link { color: #61dafb; }
 
 @keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
+
+/* Uwaga: celowo usuwam .App-header z min-height: 100vh, aby nie psuło sticky footera */

@@ -14,13 +14,11 @@ import {
 const db = getFirestore();
 
 function toTs(value) {
-  // Try to normalize createdAt/approvedAt/timestamp/date to a number for sorting
   if (!value) return 0;
   try {
     if (typeof value === "number") return value;
     if (typeof value === "string") return new Date(value).getTime() || 0;
-    // Firestore Timestamp
-    if (value?.toDate) return value.toDate().getTime() || 0;
+    if (value?.toDate) return value.toDate().getTime() || 0; // Firestore Timestamp
     if (value?.seconds) return value.seconds * 1000;
   } catch {}
   return 0;
@@ -31,6 +29,65 @@ export default function Reviews({ vetId, user }) {
   const [topReviews, setTopReviews] = useState([]);       // top-level reviews with vetId
   const [pendingLocal, setPendingLocal] = useState([]);   // optimistic, “awaiting moderation”
   const [loading, setLoading] = useState(true);
+
+  // Style kart opinii, alertów i gwiazdek — spójne z theme i z ReviewForm
+  const styles = `
+    .rvAlert{
+      background: color-mix(in srgb, var(--color-danger) 10%, #fff);
+      border: var(--border-width) solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 10px;
+      margin-bottom: 12px;
+      color: var(--color-danger);
+      font-weight: 700;
+    }
+    .rvPendingBox{
+      background: color-mix(in srgb, var(--color-primary-500) 6%, #fff);
+      border: var(--border-width) solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      margin-bottom: 12px;
+      color: var(--color-text);
+    }
+    .rvPendingItem{
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-md);
+      background: #fff;
+    }
+    .rvCard{
+      margin-bottom: 12px;
+      padding: 16px;
+      border: var(--border-width) solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-sm);
+      color: var(--color-text);
+    }
+    .rvHead{
+      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+      margin-bottom: 6px;
+    }
+    .rvTitle{ font-weight:800; }
+    .rvMeta{ font-size:12px; color: var(--color-text-muted); }
+
+    /* Gwiazdki w kartach opinii — ten sam look co w ReviewForm */
+    .rvStars{ display:inline-flex; gap:4px; align-items:center; }
+    .rvStar{
+      font-size: 18px; line-height:1;
+      color: var(--color-text-muted);
+    }
+    .rvStar.isActive{ color: var(--color-primary-600); }
+
+    .rvEmpty{
+      color: var(--color-text-muted);
+      background: var(--color-surface);
+      border: var(--border-width) solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 12px;
+    }
+  `;
 
   // Subscribe to vets/{vetId}/reviews (approved)
   useEffect(() => {
@@ -79,25 +136,23 @@ export default function Reviews({ vetId, user }) {
   // Merge & dedupe approved reviews from both sources
   const approvedMerged = useMemo(() => {
     const map = new Map();
-    // prefer subcollection version if both exist; otherwise use top-level
     const put = (r, source) => {
       const key = r.id || `${r.user || ""}|${toTs(r.createdAt) || toTs(r.approvedAt)}`;
-      if (!map.has(key)) {
-        map.set(key, { ...r, _source: source });
-      } else {
-        // If both exist, prefer subcollection copy
+      if (!map.has(key)) map.set(key, { ...r, _source: source });
+      else {
         const existing = map.get(key);
-        if (existing._source !== "sub") {
-          map.set(key, { ...r, _source: source });
-        }
+        if (existing._source !== "sub") map.set(key, { ...r, _source: source });
       }
     };
     subcolReviews.forEach((r) => put(r, "sub"));
     topReviews.forEach((r) => put(r, "top"));
 
     const arr = Array.from(map.values());
-    // sort newest first by createdAt/approvedAt
-    arr.sort((a, b) => (toTs(b.createdAt) || toTs(b.approvedAt)) - (toTs(a.createdAt) || toTs(a.approvedAt)));
+    arr.sort(
+      (a, b) =>
+        (toTs(b.createdAt) || toTs(b.approvedAt)) -
+        (toTs(a.createdAt) || toTs(a.approvedAt))
+    );
     return arr;
   }, [subcolReviews, topReviews]);
 
@@ -122,59 +177,44 @@ export default function Reviews({ vetId, user }) {
     } catch (err) {
       console.error("❌ Błąd zapisu opinii:", err);
       alert("Nie udało się wysłać opinii: " + err.message);
-      // revert optimistic item
       setPendingLocal((prev) => prev.filter((r) => r !== reviewForPending));
     }
   }
 
+  const Stars = ({ value }) => (
+    <span className="rvStars" aria-label={`Ocena ${value} z 5`}>
+      {[1,2,3,4,5].map((n) => (
+        <span key={n} className={`rvStar ${value >= n ? "isActive" : ""}`}>★</span>
+      ))}
+    </span>
+  );
+
   return (
     <div>
+      <style>{styles}</style>
+
       {/* Review form */}
       {user ? (
         <ReviewForm onSubmit={handleAddReview} />
       ) : (
-        <div
-          style={{
-            background: "#ffe5e5",
-            padding: 10,
-            borderRadius: 8,
-            marginBottom: 12,
-            color: "#a00",
-          }}
-        >
+        <div className="rvAlert">
           Aby dodać opinię musisz się zalogować.
         </div>
       )}
 
       {/* Pending (local-only) */}
       {pendingLocal.length > 0 && (
-        <div
-          style={{
-            background: "#fff9e6",
-            border: "1px solid #f0e0a0",
-            padding: 10,
-            borderRadius: 8,
-            marginBottom: 12,
-            color: "#6b5d00",
-          }}
-        >
+        <div className="rvPendingBox">
           <b>Twoje opinie oczekujące na moderację:</b>
           {pendingLocal.map((r, i) => (
-            <div
-              key={`pending-${i}`}
-              style={{
-                marginTop: 10,
-                padding: 12,
-                border: "1px dashed #e1c97a",
-                borderRadius: 8,
-                background: "#fffdf6",
-              }}
-            >
-              <b>{r.title}</b>{" "}
-              <span style={{ color: "#9a8f5a", fontSize: 12 }}>(w moderacji)</span>
-              <div>Ocena: {r.rating} ★</div>
+            <div key={`pending-${i}`} className="rvPendingItem">
+              <div className="rvHead">
+                <span className="rvTitle">{r.title}</span>
+                <Stars value={r.rating} />
+                <span className="rvMeta">(w moderacji)</span>
+              </div>
               <div>{r.text}</div>
-              <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
+              <div className="rvMeta" style={{ marginTop: 4 }}>
                 Autor: {r.user}
               </div>
             </div>
@@ -184,36 +224,27 @@ export default function Reviews({ vetId, user }) {
 
       {/* Approved reviews (merged from both paths) */}
       {loading ? (
-        <div>⏳ Ładowanie opinii...</div>
+        <div className="rvEmpty">⏳ Ładowanie opinii...</div>
       ) : approvedMerged.length === 0 ? (
-        <div>Brak opinii. Bądź pierwszą osobą, która doda opinię!</div>
+        <div className="rvEmpty">Brak opinii. Bądź pierwszą osobą, która doda opinię!</div>
       ) : (
         approvedMerged.map((r) => (
-          <div
-            key={r.id}
-            style={{
-              marginBottom: 12,
-              padding: 12,
-              border: "1px solid #eee",
-              borderRadius: 8,
-              background: "#fff",
-            }}
-          >
-            <b>{r.title || "Opinia"}</b>{" "}
-            <span style={{ color: "#aaa", fontSize: 12 }}>
-              {r.createdAt
-                ? new Date(r.createdAt).toLocaleDateString("pl-PL")
-                : r.approvedAt
-                ? new Date(r.approvedAt).toLocaleDateString("pl-PL")
-                : ""}
-            </span>
-            <div>Ocena: {r.rating} ★</div>
+          <div key={r.id} className="rvCard">
+            <div className="rvHead">
+              <span className="rvTitle">{r.title || "Opinia"}</span>
+              <Stars value={Number(r.rating) || 0} />
+              <span className="rvMeta">
+                {r.createdAt
+                  ? new Date(r.createdAt).toLocaleDateString("pl-PL")
+                  : r.approvedAt
+                  ? new Date(r.approvedAt).toLocaleDateString("pl-PL")
+                  : ""}
+              </span>
+            </div>
             <div>{r.text}</div>
-            <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
+            <div className="rvMeta" style={{ marginTop: 4 }}>
               Autor: {r.user}
             </div>
-            {/* Optional: show where this one came from for debugging */}
-            {/* <div style={{ fontSize: 11, color: "#999" }}>src: {r._source}</div> */}
           </div>
         ))
       )}

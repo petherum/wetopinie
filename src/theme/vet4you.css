@@ -1,0 +1,75 @@
+/* ===============================
+   Vet4You Design Tokens (Light)
+   =============================== */
+:root{
+  /* Primary (unikalny odcień indigo/azure – inny od Booking) */
+  --color-primary-800: #082e6e;
+  --color-primary-700: #0b3c84;  /* navbar bg */
+  --color-primary-600: #124da3;
+  --color-primary-500: #1a63c8;  /* link/cta */
+  --color-primary-400: #2e7fe6;
+
+  /* Accent (cieplejsze złoto, inne niż Booking) */
+  --color-accent-600: #e8a900;
+  --color-accent-500: #ffc643;   /* główny akcent (np. CTA secondary) */
+
+  /* Secondary (chłodny cyjan, inny od #009fe3) */
+  --color-secondary-500: #00b3d1;
+
+  /* Neutrals */
+  --color-text: #0e1b2b;
+  --color-text-muted: #6a7a8a;
+
+  --color-bg: #f7fafd;        /* tło strony */
+  --color-surface: #ffffff;   /* karty/sekcje */
+  --color-surface-muted: #f3f7fb;
+
+  --color-border: #dfe3ea;       /* subtelna ramka */
+  --color-border-strong: #bfc7d3;/* mocniejsza ramka */
+
+  /* Feedback */
+  --color-success: #24ba36;
+  --color-warning: #ffb020;
+  --color-danger:  #e5484d;
+  --color-info:    var(--color-primary-500);
+
+  /* Focus / radii / shadows */
+  --focus-ring: var(--color-primary-500);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --border-width: 1px;
+  --focus-width: 2px;
+
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.06);
+  --shadow-md: 0 2px 8px rgba(16,24,40,.08);
+  --shadow-lg: 0 6px 18px rgba(16,24,40,.10);
+}
+
+/* ===============================
+   Dark Mode (klasa .theme-dark na <body>)
+   =============================== */
+.theme-dark{
+  --color-bg: #0b1220;
+  --color-surface: #121a28;
+  --color-surface-muted: #0f1624;
+
+  --color-text: #e6edf5;
+  --color-text-muted: #93a3b3;
+
+  --color-border: #263241;
+  --color-border-strong: #374559;
+
+  /* Primary rozjaśnione pod ciemne tło */
+  --color-primary-700: #2b5fb9;
+  --color-primary-600: #3d73cc;
+  --color-primary-500: #5a8ee0;   /* link/cta dark */
+  --color-primary-400: #8bb5ff;
+
+  --color-accent-500: #ffd35e;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+}

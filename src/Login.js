@@ -18,14 +18,12 @@ export default function Login({ user, setUser }) {
 
   const { redirect, msg } = getRedirectAndMsg(location.search);
 
-  // ✅ Nasłuchiwanie stanu logowania i odświeżanie tokena
+  // ✅ Nasłuchiwanie stanu logowania i odświeżanie tokena (claims)
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (u) => {
       if (u) {
-        // ✅ Wymuszamy odświeżenie tokena, aby pobrać aktualne claims
         const token = await u.getIdTokenResult(true);
-        console.log("✅ Token claims:", token.claims); // 🔥 Log do konsoli
-        setUser({ ...u, isAdmin: !!token.claims.isAdmin }); // Dodajemy isAdmin do usera
+        setUser({ ...u, isAdmin: !!token.claims.isAdmin });
       } else {
         setUser(null);
       }
@@ -33,7 +31,7 @@ export default function Login({ user, setUser }) {
     return () => unsubscribe();
   }, [setUser]);
 
-  // Obsługa komunikatów na podstawie parametrów URL
+  // ✅ Komunikaty informacyjne z URL
   useEffect(() => {
     if (msg === "add") setInfoMsg("Aby dodać lecznicę, musisz być zalogowany.");
     else if (msg === "edit") setInfoMsg("Aby edytować dane lecznicy, musisz być zalogowany.");
@@ -44,8 +42,7 @@ export default function Login({ user, setUser }) {
   const handleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      const token = await result.user.getIdTokenResult(true); // Od razu pobieramy claims
-      console.log("✅ Zalogowano. Claims:", token.claims);
+      const token = await result.user.getIdTokenResult(true);
       setUser({ ...result.user, isAdmin: !!token.claims.isAdmin });
       if (redirect) navigate(redirect, { replace: true });
     } catch (error) {
@@ -65,48 +62,101 @@ export default function Login({ user, setUser }) {
     }
   };
 
-  // ✅ Jeśli zalogowany, pokazujemy dane użytkownika
-  if (user) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <img
-          src={user.photoURL || "https://ui-avatars.com/api/?name=Użytkownik"}
-          alt="avatar"
-          style={{ width: 32, height: 32, borderRadius: "50%" }}
-        />
-        <span style={{ fontWeight: 500, color: "#2a2", display: "flex", alignItems: "center", gap: 6 }}>
-          {user.displayName || user.email}
-          {user.isAdmin && (
-            <span style={{
-              background: "#ffcc00",
-              color: "#000",
-              fontSize: 11,
-              fontWeight: 700,
-              padding: "2px 6px",
-              borderRadius: 4
-            }}>
-              ADMIN
-            </span>
-          )}
-        </span>
-        <button onClick={handleLogout} style={{ marginLeft: 10, padding: "3px 12px" }}>
-          Wyloguj
-        </button>
-      </div>
-    );
-  }
+  // Wspólne style komponentu (spójne z theme poprzez zmienne CSS)
+  const styles = `
+    .googleBtn{
+      display:inline-flex; align-items:center; gap:10px;
+      padding:12px 16px; min-height:44px;
+      border-radius:var(--radius-lg);
+      border:var(--border-width) solid var(--color-border);
+      background:#fff; color:var(--color-primary-700);
+      font-weight:700; cursor:pointer; text-decoration:none;
+    }
+    .googleBtn:hover{
+      background: color-mix(in srgb, var(--color-primary-500) 10%, #fff);
+    }
+    .googleBtn:active{ transform: translateY(1px); }
+    .googleBtn .gmark{
+      display:inline-flex; width:20px; height:20px; border-radius:4px;
+      justify-content:center; align-items:center; font-weight:800;
+      border:var(--border-width) solid var(--color-border);
+      background:var(--color-surface);
+    }
 
-  // ✅ Jeśli nie zalogowany
+    .userBox{ position:relative; display:inline-flex; }
+    .avatarBtn{
+      width:36px; height:36px; border-radius:9999px; padding:0;
+      display:inline-flex; align-items:center; justify-content:center;
+      font-weight:800; color:var(--color-primary-700);
+      background:var(--color-surface);
+      border:var(--border-width) solid var(--color-border);
+      cursor:pointer;
+    }
+    .userMenu{
+      position:absolute; right:0; top:calc(100% + 8px);
+      display:none;
+      background:var(--color-surface);
+      border:var(--border-width) solid var(--color-border);
+      border-radius:var(--radius-md); box-shadow:var(--shadow-lg);
+      min-width:160px; padding:6px; z-index:50;
+    }
+    .userMenu > *{
+      width:100%; padding:10px 12px; text-align:left;
+      background:transparent; border:none; cursor:pointer;
+      color:var(--color-text);
+    }
+    .userMenu > *:hover{
+      background: color-mix(in srgb, var(--color-primary-500) 10%, #fff);
+    }
+    .userBox:hover .userMenu,
+    .userBox:focus-within .userMenu{ display:block; }
+
+    .loginInfoMsg{
+      color:#b36209; font-weight:500; margin-bottom:10px;
+    }
+  `;
+
+  // ✅ Render
+  const initial =
+    ((user?.displayName || user?.email || "?").trim()[0] || "?").toUpperCase();
+
   return (
-    <div>
-      {infoMsg && (
-        <div style={{ color: "#b36209", fontWeight: 500, marginBottom: 10 }}>
-          {infoMsg}
+    <>
+      <style>{styles}</style>
+
+      {user ? (
+        // 🔒 Zalogowany: tylko kółko z literą; "Wyloguj" na hover/focus
+        <div className="userBox" aria-label="Menu użytkownika">
+          <button
+            className="avatarBtn"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            title={user?.email || "Profil"}
+          >
+            {initial}
+          </button>
+
+          <div className="userMenu" role="menu" aria-label="Opcje użytkownika">
+            <button type="button" onClick={handleLogout} role="menuitem">
+              Wyloguj
+            </button>
+          </div>
+        </div>
+      ) : (
+        // 🔓 Niezalogowany: komunikat + przycisk Google w stylu portalu
+        <div>
+          {infoMsg && <div className="loginInfoMsg">{infoMsg}</div>}
+
+          <button
+            className="googleBtn"
+            onClick={handleLogin}
+            aria-label="Zaloguj się przez Google"
+          >
+            <span className="gmark" aria-hidden>G</span>
+            Zaloguj się przez Google
+          </button>
         </div>
       )}
-      <button onClick={handleLogin} style={{ padding: "6px 16px" }}>
-        Zaloguj się przez Google
-      </button>
-    </div>
+    </>
   );
 }
