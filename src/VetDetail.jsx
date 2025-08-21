@@ -169,7 +169,7 @@ export default function VetDetail({ user }) {
   useEffect(() => {
     const fetchVet = async () => {
       try {
-        const docRef = doc(db, "vets", id);
+        const docRef = doc(db, "vet_points", id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setVet({ id: docSnap.id, ...docSnap.data() });
