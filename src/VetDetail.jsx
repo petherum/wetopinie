@@ -166,25 +166,38 @@ export default function VetDetail({ user }) {
   `;
 
   // Fetch vet from Firestore
-  useEffect(() => {
-    const fetchVet = async () => {
-      try {
-        const docRef = doc(db, "vets", id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setVet({ id: docSnap.id, ...docSnap.data() });
-        } else {
-          setError("Nie znaleziono tej lecznicy.");
-        }
-      } catch (err) {
-        console.error("Błąd pobierania lecznicy:", err);
-        setError("Nie udało się pobrać danych.");
-      } finally {
-        setLoading(false);
+useEffect(() => {
+  const fetchVet = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      // Try vet_points first
+      let docRef = doc(db, "vet_points", id);
+      let docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        // If not found, try vets collection (old numeric IDs)
+        docRef = doc(db, "vets", id);
+        docSnap = await getDoc(docRef);
       }
-    };
-    fetchVet();
-  }, [id]);
+
+      if (docSnap.exists()) {
+        setVet({ id: docSnap.id, ...docSnap.data() });
+      } else {
+        setError("Nie znaleziono tej lecznicy.");
+      }
+    } catch (err) {
+      console.error("Błąd pobierania lecznicy:", err);
+      setError("Nie udało się pobrać danych.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchVet();
+}, [id]);
+
 
   if (loading) return <div style={{ margin: 40, color: "var(--color-text)" }}>⏳ Ładowanie danych...</div>;
   if (error) return <div style={{ margin: 40, color: "var(--color-danger)" }}>{error}</div>;
