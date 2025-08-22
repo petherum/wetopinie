@@ -166,24 +166,44 @@ export default function VetDetail({ user }) {
   `;
 
   // Fetch vet from Firestore
-useEffect(() => {
+  useEffect(() => {
   const fetchVet = async () => {
     try {
-      setLoading(true);
-      setError("");
-
-      // Try vet_points first
-      let docRef = doc(db, "vet_points", id);
-      let docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        // If not found, try vets collection (old numeric IDs)
-        docRef = doc(db, "vets", id);
-        docSnap = await getDoc(docRef);
-      }
-
+      const docRef = doc(db, "vets", id);
+      const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setVet({ id: docSnap.id, ...docSnap.data() });
+      const raw = docSnap.data();
+      // map excel-style fields to your app schema
+      const openingHours = raw.openingHours ?? {
+        pn: raw.OpenHoursMonday ?? "",
+        wt: raw.OpenHoursTuesday ?? "",
+        sr: raw.OpenHoursWednesday ?? "",
+        cz: raw.OpenHoursThursday ?? "",
+        pt: raw.OpenHoursFriday ?? "",
+        sb: raw.OpenHoursSaturday ?? "",
+        nd: raw.OpenHoursSunday ?? "",
+       };
+       const phone = String(raw.phone ?? raw.Telephone ?? "");
+       const name = raw.name ?? raw.NAME ?? "";
+       const city = raw.city ?? raw.CITY ?? "";
+       const address = raw.address ?? raw.Address ?? "";
+       const specializations = Array.isArray(raw.specializations)
+         ? raw.specializations
+         : typeof raw.Specialisations === "string"
+           ? raw.Specialisations.split(",").map(s => s.trim()).filter(Boolean)
+           : raw.specializations ?? [];
+       const vet = {
+         id: docSnap.id,
+         ...raw,
+         name, city, address, phone, openingHours, specializations,
+         www: raw.www ?? raw.WWW ?? "",
+         email: raw.email ?? raw.EMAIL ?? "",
+         facebook: raw.facebook ?? raw.Facebook ?? "",
+         instagram: raw.instagram ?? raw.Instagram ?? "",
+         linkedin: raw.linkedin ?? raw.LinkedIn ?? "",
+         youtube: raw.youtube ?? raw.YouTube ?? "",
+       };
+       setVet(vet);
       } else {
         setError("Nie znaleziono tej lecznicy.");
       }
@@ -194,7 +214,6 @@ useEffect(() => {
       setLoading(false);
     }
   };
-
   fetchVet();
 }, [id]);
 
