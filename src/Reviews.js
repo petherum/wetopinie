@@ -30,73 +30,34 @@ export default function Reviews({ vetId, user }) {
   const [pendingLocal, setPendingLocal] = useState([]);   // optimistic, “awaiting moderation”
   const [loading, setLoading] = useState(true);
 
-  // Style kart opinii, alertów i gwiazdek — spójne z theme i z ReviewForm
+  // Always use a string doc id for Firestore paths/filters
+  const vetDocId = String(vetId ?? "").trim();
+
+  // Style
   const styles = `
-    .rvAlert{
-      background: color-mix(in srgb, var(--color-danger) 10%, #fff);
-      border: var(--border-width) solid var(--color-border);
-      border-radius: var(--radius-md);
-      padding: 10px;
-      margin-bottom: 12px;
-      color: var(--color-danger);
-      font-weight: 700;
-    }
-    .rvPendingBox{
-      background: color-mix(in srgb, var(--color-primary-500) 6%, #fff);
-      border: var(--border-width) solid var(--color-border);
-      border-radius: var(--radius-lg);
-      padding: 12px;
-      margin-bottom: 12px;
-      color: var(--color-text);
-    }
-    .rvPendingItem{
-      margin-top: 10px;
-      padding: 12px;
-      border: 1px dashed var(--color-border);
-      border-radius: var(--radius-md);
-      background: #fff;
-    }
-    .rvCard{
-      margin-bottom: 12px;
-      padding: 16px;
-      border: var(--border-width) solid var(--color-border);
-      border-radius: var(--radius-lg);
-      background: var(--color-surface);
-      box-shadow: var(--shadow-sm);
-      color: var(--color-text);
-    }
-    .rvHead{
-      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-      margin-bottom: 6px;
-    }
+    .rvAlert{ background: color-mix(in srgb, var(--color-danger) 10%, #fff); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-md); padding: 10px; margin-bottom: 12px; color: var(--color-danger); font-weight: 700; }
+    .rvPendingBox{ background: color-mix(in srgb, var(--color-primary-500) 6%, #fff); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 12px; color: var(--color-text); }
+    .rvPendingItem{ margin-top: 10px; padding: 12px; border: 1px dashed var(--color-border); border-radius: var(--radius-md); background: #fff; }
+    .rvCard{ margin-bottom: 12px; padding: 16px; border: var(--border-width) solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); color: var(--color-text); }
+    .rvHead{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom: 6px; }
     .rvTitle{ font-weight:800; }
     .rvMeta{ font-size:12px; color: var(--color-text-muted); }
-
-    /* Gwiazdki w kartach opinii — ten sam look co w ReviewForm */
     .rvStars{ display:inline-flex; gap:4px; align-items:center; }
-    .rvStar{
-      font-size: 18px; line-height:1;
-      color: var(--color-text-muted);
-    }
+    .rvStar{ font-size: 18px; line-height:1; color: var(--color-text-muted); }
     .rvStar.isActive{ color: var(--color-primary-600); }
-
-    .rvEmpty{
-      color: var(--color-text-muted);
-      background: var(--color-surface);
-      border: var(--border-width) solid var(--color-border);
-      border-radius: var(--radius-md);
-      padding: 12px;
-    }
+    .rvEmpty{ color: var(--color-text-muted); background: var(--color-surface); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-md); padding: 12px; }
   `;
 
   // Subscribe to vets/{vetId}/reviews (approved)
   useEffect(() => {
-    if (!vetId) return;
+    if (!vetDocId) return;
     setLoading(true);
+
     const q1 = query(
-      collection(db, "vets", vetId, "reviews"),
+      collection(db, "vets", vetDocId, "reviews"),
       orderBy("createdAt", "desc")
     );
+
     const unsub1 = onSnapshot(
       q1,
       (snap) => {
@@ -110,16 +71,18 @@ export default function Reviews({ vetId, user }) {
       }
     );
     return () => unsub1();
-  }, [vetId]);
+  }, [vetDocId]);
 
   // Subscribe to top-level reviews filtered by vetId (approved duplicate copy)
   useEffect(() => {
-    if (!vetId) return;
+    if (!vetDocId) return;
+
     const q2 = query(
       collection(db, "reviews"),
-      where("vetId", "==", vetId),
+      where("vetId", "==", vetDocId),
       orderBy("createdAt", "desc")
     );
+
     const unsub2 = onSnapshot(
       q2,
       (snap) => {
@@ -131,7 +94,7 @@ export default function Reviews({ vetId, user }) {
       }
     );
     return () => unsub2();
-  }, [vetId]);
+  }, [vetDocId]);
 
   // Merge & dedupe approved reviews from both sources
   const approvedMerged = useMemo(() => {
@@ -159,7 +122,7 @@ export default function Reviews({ vetId, user }) {
   // Add review → goes to pendingReviews for moderation
   async function handleAddReview(data) {
     const reviewForPending = {
-      vetId,
+      vetId: vetDocId, // store string id consistently
       title: data.title || "Opinia",
       text: data.text || "",
       rating: Number(data.rating) || 0,
@@ -168,7 +131,7 @@ export default function Reviews({ vetId, user }) {
       timestamp: new Date().toISOString(),
     };
 
-    // Optimistic UI: show in a “pending” box
+    // Optimistic UI
     setPendingLocal((prev) => [reviewForPending, ...prev]);
 
     try {
