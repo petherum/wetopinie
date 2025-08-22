@@ -100,6 +100,50 @@ function formatPhoneDisplay(phone) {
 }
 
 // ---------------------------
+// Normalization helper
+// ---------------------------
+function normalizeVet(raw) {
+  const name = raw.name ?? raw.NAME ?? "";
+  const city = raw.city ?? raw.CITY ?? "";
+  const address = raw.address ?? raw.Address ?? "";
+  const phone = raw.phone ?? raw.Telephone ?? "";
+
+  let specializations =
+    raw.specializations ?? raw.Specialisations ?? raw.Specialization ?? null;
+  if (typeof specializations === "string") {
+    specializations = specializations
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  const openingHours =
+    raw.openingHours ?? {
+      pn: raw.OpenHoursMonday ?? "",
+      wt: raw.OpenHoursTuesday ?? "",
+      sr: raw.OpenHoursWednesday ?? "",
+      cz: raw.OpenHoursThursday ?? "",
+      pt: raw.OpenHoursFriday ?? "",
+      sb: raw.OpenHoursSaturday ?? "",
+      nd: raw.OpenHoursSunday ?? "",
+    };
+
+  return {
+    ...raw,
+    name,
+    city,
+    address,
+    phone: String(phone || ""),
+    specializations: Array.isArray(specializations)
+      ? specializations
+      : specializations ?? [],
+    openingHours,
+    lat: raw.lat ?? raw.Lat ?? null,
+    lng: raw.lng ?? raw.Lng ?? null,
+  };
+}
+
+// ---------------------------
 // Skeleton
 // ---------------------------
 const SkeletonCard = () => (
@@ -126,7 +170,7 @@ export default function SearchPage() {
   const [error, setError] = useState("");
 
   const [name, setName] = useState("");
-  const deferredName = useDeferredValue(name); // uproszczenie: bez własnego debounce
+  const deferredName = useDeferredValue(name);
 
   const [city, setCity] = useState("");
   const [special, setSpecial] = useState("");
@@ -137,9 +181,8 @@ export default function SearchPage() {
   const [userCoords, setUserCoords] = useState(null);
   const [showNearby, setShowNearby] = useState(false);
   const [locationError, setLocationError] = useState("");
-  const [locationStatus, setLocationStatus] = useState("idle"); // idle | pending | granted | denied
+  const [locationStatus, setLocationStatus] = useState("idle");
 
-  // Custom dropdowns
   const [showCityDd, setShowCityDd] = useState(false);
   const [showSpecDd, setShowSpecDd] = useState(false);
   const cityFieldRef = useRef(null);
@@ -152,7 +195,16 @@ export default function SearchPage() {
       try {
         const snapshot = await getDocs(collection(db, "vets"));
         if (cancelled) return;
-        const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const data = snapshot.docs.map((doc) => {
+          const raw = doc.data();
+          const { id: legacyId, ...rest } = raw;
+          const normalized = normalizeVet(rest);
+          return {
+            ...normalized,
+            externalId: legacyId ?? null,
+            id: doc.id,
+          };
+        });
         setVets(data);
       } catch (err) {
         console.error("❌ Błąd pobierania danych:", err);
@@ -166,6 +218,9 @@ export default function SearchPage() {
       cancelled = true;
     };
   }, []);
+
+  // ... keep the rest of your SearchPage code (filters, dropdowns, UI, etc.)
+
 
   // Persist & restore filters (localStorage)
   useEffect(() => {
